@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+#
+# Verifie si il faut configurer automatiquement gammu
+while [[ "$autogammu" != "y" && "$autogammu" != "n" ]]
+do
+	echo 'Il est possible de configurer automatiquement gammu. Pour cela, le module GSM gérant la carte SIM doit-être connecté à la Raspberry Pi. Voulez-vous le faire ? [y/n]';
+	read autogammu;
+done
+
+if [ "$autogammu" == "y" ]
+then
+	echo 'Gammu va etre configure automatiquement.'
+
+	#On va recupérer la conf générée avec gammu-detect
+	echo "Creation des fichier de configuration /etc/gammurc et /etc/gammu-smsdrc"
+	gammu-detect > /etc/gammurc
+	gammu-detect > /etc/gammu-smsdrc
+
+	#On ajoute la localisation fr
+	$(sed -i -e "s/\[gammu\(.\)*]/[gammu\1]\nGammuCoding = utf8\nGammuLoc = fr_FR.UTF8/g /etc/gammu-smsdrc")
+
+	#On va demander le code PIN
+	echo "Rentrez le code PIN de votre carte SIM. (Laissez vide si elle n'a pas de code PIN)"
+	read pin
+
+	#On ajoute la configuration de gammu-smsd
+	echo "# SMSD configuration, see gammu-smsdrc(5)" >> /etc/gammu-smsdrc
+	echo "[smsd]" >> /etc/gammu-smsdrc
+	echo "service = files" >> /etc/gammu-smsdrc
+	echo "logfile = syslog" >> /etc/gammu-smsdrc
+	echo "# Increase for debugging information" >> /etc/gammu-smsdrc
+	echo "debuglevel = 0" >> /etc/gammu-smsdrc
+	echo "RunOnReceive = /var/www/html/RaspiSMS/parseSMS.sh" >> /etc/gammu-smsdrc
+
+	echo "# Paths where messages are stored" >> /etc/gammu-smsdrc
+	echo "inboxpath = /var/spool/gammu/inbox/" >> /etc/gammu-smsdrc
+	echo "outboxpath = /var/spool/gammu/outbox/" >> /etc/gammu-smsdrc
+	echo "sentsmspath = /var/spool/gammu/sent/" >> /etc/gammu-smsdrc
+	echo "errorsmspath = /var/spool/gammu/error/" >> /etc/gammu-smsdrc
+
+	#Si on a bien un code PIN
+	if [ "$pin" != "" ]
+	then
+		#On l'ajoute au fichier de configuration
+		echo "Le code PIN $pin a été ajouté à la configuration de gammu"
+		echo "pin = $pin" >> /etc/gammu-smsdrc
+	else
+		echo "Aucun code PIN ne sera utilisé."
+	fi
+
+	echo "Le fichier de configuration /etc/gammu-smsdrcrc a été généré correctement."
+else
+	echo "Le fichier de configuration /etc/gammu-smsdrcrc n'a pas pu être généré. Vous devrez le configurer à la main."
+fi
+
+#Creation du compte admin
+echo "La base de données de RaspiSMS va être déployée."
+echo "Password root MySQL :"
+stty -echo
+read passwordmysql
+stty echo
+$(mysql -u root -p$passwordmysql < /var/www/html/RaspiSMS/createDatabase.sql)
+echo "La base de données a été correctement déployée."
+
+echo "La connexion a la base de données pour RaspiSMS va être configurée avec le compte root"
+$(sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$passwordmysql/g" /var/www/html/RaspiSMS/mvc/constants.php)
+
+
+echo "RaspiSMS a été installé avec succès dans le répertoire /var/www/html/RaspiSMS.\n\n";
+
+#On va donner les bon droits aux différents fichiers
+echo "Attribution du dossier /var/www/html/RaspiSMS à l'utilisateur www-data"
+chmod -R 755 /var/www/html/RaspiSMS
+chown -R www-data:www-data /var/www/html/RaspiSMS
+echo "Le dossier a bien été donné à www-data, avec les droits 755";
+echo "Attribution du dossier /var/www/html/RaspiSMS/receiveds à l'utilisateur gammu";
+chmod -R 755 /var/www/html/RaspiSMS/receiveds
+chown -R gammu:gammu /var/www/html/RaspiSMS/receiveds
+echo "Le dossier a bien été donné à gammu, avec les droits 755";
+echo "Ajout droit d'execution sur /var/www/html/RaspiSMS/console.php";
+chmod +x /var/www/html/RaspiSMS/console.php
+echo "Droit d'execution ajoute";
+echo "Ajout droit d'execution sur /var/www/html/RaspiSMS/parseSMS.sh";
+chmod +x /var/www/html/RaspiSMS/parseSMS.sh
+echo "Droit d'execution ajoute";
+ 
+echo "Le compte administrateur pour RaspiSMS va être créé. Choisissez une adresse e-mail et un mot de passe pour ce compte"
+echo "Adresse e-mail : "
+read email
+echo "Mot de passe : "
+stty -echo
+read password
+stty echo
+$(mysql -u root -p$passwordmysql -e "use raspisms;INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)");
+
+echo "Activation du module de réecriture d'URL d'Apache"
+a2enmod rewrite
+
+echo "Ajout du fichier de configuration Apache de RaspiSMS"
+touch /etc/apache2/sites-available/raspisms.conf
+echo '<Directory "/var/www/html/RaspiSMS/">' > /etc/apache2/sites-available/raspisms.conf
+echo '    AllowOverride All' > /etc/apache2/sites-available/raspisms.conf
+echo '    ErrorLog ${APACHE_LOG_DIR}/raspisms.error.log' > /etc/apache2/sites-available/raspisms.conf
+echo '    CustomLog ${APACHE_LOG_DIR}/raspisms.access.log combined' > /etc/apache2/sites-available/raspisms.conf
+echo '</Directory>' > /etc/apache2/sites-available/raspisms.conf
+
+echo "Activation du fichier de configuration Apache de RaspiSMS"
+a2ensite raspisms.conf
+
+echo "Redémarrage d'Apache"
+service apache2 restart
+
+echo "Redémarrage de Gammu"
+service gammu-smsd stop
+service gammu-smsd start
+
+#Ajout des taches CRON
+echo "Ajout des tâches dans la crontab"
+line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c parseReceivedSMS"
+(crontab -u root -l; echo "$line" ) | crontab -u root -
+line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c sendScheduleds"
+(crontab -u root -l; echo "$line" ) | crontab -u root -
+
+echo "Installation terminée avec succès."
