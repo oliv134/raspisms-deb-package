@@ -19,7 +19,7 @@ Enfin, nous lançons l'installation du logiciel :
 ```bash
 sudo apt-get update
 sudo dpkg -i raspisms-deb-package/raspisms.deb
-sudo apt-get install raspisms
+sudo aptitude install raspisms
 ```
 
 Il ne vous reste plus qu'à suivre les indications !
