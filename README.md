@@ -18,8 +18,8 @@ unzip ./master.zip
 Enfin, nous lançons l'installation du logiciel :
 ```bash
 sudo apt-get update
-sudo dpkg -i raspisms-deb-package/raspisms.deb
-sudo apt-get install raspisms
+sudo dpkg -i raspisms-deb-package-master/raspisms.deb
+sudo apt-get -f install
 ```
 
 Il ne vous reste plus qu'à suivre les indications !
