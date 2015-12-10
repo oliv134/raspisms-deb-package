@@ -103,8 +103,6 @@ rm /etc/apache2/sites-available/raspisms.conf
 touch /etc/apache2/sites-available/raspisms.conf
 echo '<Directory "/var/www/html/RaspiSMS/">' >> /etc/apache2/sites-available/raspisms.conf
 echo '    AllowOverride All' >> /etc/apache2/sites-available/raspisms.conf
-echo '    ErrorLog ${APACHE_LOG_DIR}/raspisms.error.log' >> /etc/apache2/sites-available/raspisms.conf
-echo '    CustomLog ${APACHE_LOG_DIR}/raspisms.access.log combined' >> /etc/apache2/sites-available/raspisms.conf
 echo '</Directory>' >> /etc/apache2/sites-available/raspisms.conf
 
 echo "Activation du fichier de configuration Apache de RaspiSMS"
