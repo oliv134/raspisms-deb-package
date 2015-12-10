@@ -18,7 +18,7 @@ then
 	gammu-detect > /etc/gammu-smsdrc
 
 	#On ajoute la localisation fr
-	$(sed -i -e "s/\[gammu\(.\)*]/[gammu\1]\nGammuCoding = utf8\nGammuLoc = fr_FR.UTF8/g /etc/gammu-smsdrc")
+	$(sed -i -e "s/\[gammu\(.\)*]/[gammu\1]\nGammuCoding = utf8\nGammuLoc = fr_FR.UTF8/g" /etc/gammu-smsdrc)
 
 	#On va demander le code PIN
 	echo "Rentrez le code PIN de votre carte SIM. (Laissez vide si elle n'a pas de code PIN)"
@@ -98,6 +98,8 @@ echo "Activation du module de réecriture d'URL d'Apache"
 a2enmod rewrite
 
 echo "Ajout du fichier de configuration Apache de RaspiSMS"
+a2dissite raspisms.conf
+rm /etc/apache2/sites-available/raspisms.conf
 touch /etc/apache2/sites-available/raspisms.conf
 echo '<Directory "/var/www/html/RaspiSMS/">' >> /etc/apache2/sites-available/raspisms.conf
 echo '    AllowOverride All' >> /etc/apache2/sites-available/raspisms.conf
