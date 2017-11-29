@@ -1,8 +1,8 @@
-#RaspiSMS packet Debian
+##RaspiSMS packet Debian
 Ce répertoire contient le packet Debian du logiciel RaspiSMS.
 Pour plus d'informations sur ce logiciel, reportez-vous au projet suivant : https://github.com/RaspbianFrance/RaspiSMS
 
-#Installation
+##Installation
 Pour installer ce logiciel, rien de plus simple !
 
 Tout d'abord, nous allons le télécharger avec la ligne suivante :
