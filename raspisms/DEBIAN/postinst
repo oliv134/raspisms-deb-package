@@ -11,7 +11,7 @@ do
 	read autogammu;
 done
 
-if [ "$autogammu" == "y"]
+if [ "$autogammu" == "y" ]
 then
 	gammu-detect
     gammu_detect_check=$?
@@ -82,15 +82,13 @@ fi
 echo "La base de données de RaspiSMS va être déployée."
 random_password=$(date +%s | sha256sum | base64 | head -c 32)
 
-#On créer un fichier tmp qui va permettre la création d'un user raspisms
+#On kill mysql et on relance en god mode pour créer le user raspisms
 echo "Création de l'utilisateur MySQL ''raspisms''"
-echo "CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" > "/tmp/$random_password"
-echo "GRANT ALL PRIVILEGES ON *.* TO USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" >> "/tmp/$random_password"
-echo "exit;"
-
-#On kill mysql et on le relance avec le script de création du user
 service mysql stop
-mysqld --init-file="/tmp/$random_password" &
+kill `cat /var/run/mysqld/mysqld.pid`
+$(mysqld_safe --skip-grant-tables --skip-networking &> /dev/null &)
+$(mysql -u root -e "FLUSH PRIVILEGES;CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '$random_password';GRANT ALL PRIVILEGES ON *.* TO USER 'raspisms'@'localhost';")
+echo ""
 
 ret=$?
 if [ "$ret" -ne 0 ]
@@ -100,10 +98,8 @@ else
     echo "L'utilisateur MySQL 'raspisms' a bien été créé. Vous pouvez retrouver son mot de passe dans le fichier '/var/www/html/RaspiSMS/mvc/constants.php'."
 fi
 
-service mysql stop
-service mysql start
+$(mysql -u root -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
 
-$(mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
 ret=$?
 if [ "$ret" -ne 0 ]
 then
@@ -176,5 +172,8 @@ line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php 
 (crontab -u root -l; echo "$line" ) | crontab -u root -
 line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c sendScheduleds"
 (crontab -u root -l; echo "$line" ) | crontab -u root -
+
+kill `cat /var/run/mysqld/mysqld.pid`
+service mysql start
 
 echo "Installation terminée avec succès."
