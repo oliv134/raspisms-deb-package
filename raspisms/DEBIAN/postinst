@@ -70,7 +70,7 @@ then
 
 	echo "Le fichier de configuration /etc/gammu-smsdrcrc a été généré correctement."
 else
-	echo -e "${RED}Le fichier de configuration /etc/gammu-smsdrcrc n'a pas pu être généré. Vous devrez le configurer à la main."
+	echo -e "${RED}Le fichier de configuration /etc/gammu-smsdrcrc n'a pas pu être généré. Vous devrez le configurer à la main.${NC}"
 fi
 
 #Creation du compte admin
@@ -80,8 +80,7 @@ random_password=$(date +%s | sha256sum | base64 | head -c 32)
 #On créer un fichier tmp qui va permettre la création d'un user raspisms
 echo "Création de l'utilisateur MySQL ''raspisms''"
 echo "CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" > "/tmp/$random_password"
-echo "GRANT ALL PRIVILEGES ON raspisms.* TO USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" >> "/tmp/$random_password"
-echo "exit;" >> "/tmp/$random_password"
+echo "GRANT ALL PRIVILEGES ON *.* TO USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" >> "/tmp/$random_password"
 
 #On kill mysql et on le relance avec le script de création du user
 service mysql stop
@@ -90,13 +89,22 @@ mysqld --init-file="/tmp/$random_password" &
 ret=$?
 if [ "$ret" -ne 0 ]
 then
-    echo -e "${RED}Création de l'utilisateur MySQL 'raspisms' impossible. Vous devrez le créer à la main et modifier le fichier '/var/www/html/RaspiSMS/mvc/constants.php' en fonction."
+    echo -e "${RED}Création de l'utilisateur MySQL 'raspisms' impossible. Vous devrez le créer à la main et modifier le fichier '/var/www/html/RaspiSMS/mvc/constants.php' en fonction.${NC}"
 else
     echo "L'utilisateur MySQL 'raspisms' a bien été créé. Vous pouvez retrouver son mot de passe dans le fichier '/var/www/html/RaspiSMS/mvc/constants.php'."
 fi
 
+service mysql stop
+service mysql start
+
 $(mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
-echo "La base de données a été correctement déployée."
+ret=$?
+if [ "$ret" -ne 0 ]
+then
+    echo -e "${RED} Une erreur est survenue lors de la création de la base de données, effectuez cette création à la main avec la commande 'mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql'${NC}";
+else
+    echo "La base de données a été correctement déployée."
+fi
 
 echo "La connexion a la base de données pour RaspiSMS va être configurée avec le compte root"
 $(sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$random_password/g" /var/www/html/RaspiSMS/mvc/constants.php)
@@ -135,7 +143,7 @@ ret=$?
 
 if [ "$ret" -ne 0 ]
 then
-    echo -e "${RED} Impossible de créer le compte administrateur pour raspisms. Vous devrez le créer vous même avec la commande MySQL INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)"
+    echo -e "${RED} Impossible de créer le compte administrateur pour raspisms. Vous devrez le créer vous même avec la commande MySQL INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)${NC}"
 else
     echo "Le compte administrateur a bien été créé."
 fi
