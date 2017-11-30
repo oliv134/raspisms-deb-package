@@ -2,13 +2,32 @@
 #
 #
 # Verifie si il faut configurer automatiquement gammu
+RED='\033[0;31m'
+NC='\033[0m'
+
 while [[ "$autogammu" != "y" && "$autogammu" != "n" ]]
 do
 	echo 'Il est possible de configurer automatiquement gammu. Pour cela, le module GSM gérant la carte SIM doit-être connecté à la Raspberry Pi. Voulez-vous le faire ? [y/n]';
 	read autogammu;
 done
 
-if [ "$autogammu" == "y" ]
+if [ "$autogammu" == "y"]
+then
+	gammu-detect
+    gammu_detect_check=$?
+
+    if [ "$gammu_detect_check" -eq 0 ]
+    then
+        do_autogammu=1
+    else
+        do_autogammu=0
+    fi
+
+else
+    do_autogammu=0
+fi
+
+if [ "$do_autogammu" -eq 1 ]
 then
 	echo 'Gammu va etre configure automatiquement.'
 
@@ -51,20 +70,36 @@ then
 
 	echo "Le fichier de configuration /etc/gammu-smsdrcrc a été généré correctement."
 else
-	echo "Le fichier de configuration /etc/gammu-smsdrcrc n'a pas pu être généré. Vous devrez le configurer à la main."
+	echo -e "${RED}Le fichier de configuration /etc/gammu-smsdrcrc n'a pas pu être généré. Vous devrez le configurer à la main."
 fi
 
 #Creation du compte admin
 echo "La base de données de RaspiSMS va être déployée."
-echo "Password root MySQL :"
-stty -echo
-read passwordmysql
-stty echo
-$(mysql -u root -p$passwordmysql < /var/www/html/RaspiSMS/createDatabase.sql)
+random_password=$(date +%s | sha256sum | base64 | head -c 32)
+
+#On créer un fichier tmp qui va permettre la création d'un user raspisms
+echo "Création de l'utilisateur MySQL ''raspisms''"
+echo "CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" > "/tmp/$random_password"
+echo "GRANT ALL PRIVILEGES ON raspisms.* TO USER 'raspisms'@'localhost' IDENTIFIED BY '"$random_password"';" >> "/tmp/$random_password"
+echo "exit;" >> "/tmp/$random_password"
+
+#On kill mysql et on le relance avec le script de création du user
+service mysql stop
+mysqld --init-file="/tmp/$random_password" &
+
+ret=$?
+if [ "$ret" -ne 0 ]
+then
+    echo -e "${RED}Création de l'utilisateur MySQL 'raspisms' impossible. Vous devrez le créer à la main et modifier le fichier '/var/www/html/RaspiSMS/mvc/constants.php' en fonction."
+else
+    echo "L'utilisateur MySQL 'raspisms' a bien été créé. Vous pouvez retrouver son mot de passe dans le fichier '/var/www/html/RaspiSMS/mvc/constants.php'."
+fi
+
+$(mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
 echo "La base de données a été correctement déployée."
 
 echo "La connexion a la base de données pour RaspiSMS va être configurée avec le compte root"
-$(sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$passwordmysql/g" /var/www/html/RaspiSMS/mvc/constants.php)
+$(sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$random_password/g" /var/www/html/RaspiSMS/mvc/constants.php)
 
 
 echo "RaspiSMS a été installé avec succès dans le répertoire /var/www/html/RaspiSMS.\n\n";
@@ -73,13 +108,16 @@ echo "RaspiSMS a été installé avec succès dans le répertoire /var/www/html/
 echo "Attribution du dossier /var/www/html/RaspiSMS à l'utilisateur www-data"
 chmod -R 755 /var/www/html/RaspiSMS
 chown -R www-data:www-data /var/www/html/RaspiSMS
+
 echo "Le dossier a bien été donné à www-data, avec les droits 755";
 echo "Attribution du dossier /var/www/html/RaspiSMS/receiveds à l'utilisateur gammu";
 chmod -R 755 /var/www/html/RaspiSMS/receiveds
 chown -R gammu:gammu /var/www/html/RaspiSMS/receiveds
+
 echo "Le dossier a bien été donné à gammu, avec les droits 755";
 echo "Ajout droit d'execution sur /var/www/html/RaspiSMS/console.php";
 chmod +x /var/www/html/RaspiSMS/console.php
+
 echo "Droit d'execution ajoute";
 echo "Ajout droit d'execution sur /var/www/html/RaspiSMS/parseSMS.sh";
 chmod +x /var/www/html/RaspiSMS/parseSMS.sh
@@ -92,18 +130,18 @@ echo "Mot de passe : "
 stty -echo
 read password
 stty echo
-$(mysql -u root -p$passwordmysql -e "use raspisms;INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)");
+$(mysql -u raspisms -p$random_password -e "use raspisms;INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)");
+ret=$?
+
+if [ "$ret" -ne 0 ]
+then
+    echo -e "${RED} Impossible de créer le compte administrateur pour raspisms. Vous devrez le créer vous même avec la commande MySQL INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)"
+else
+    echo "Le compte administrateur a bien été créé."
+fi
 
 echo "Activation du module de réecriture d'URL d'Apache"
 a2enmod rewrite
-
-echo "Ajout du fichier de configuration Apache de RaspiSMS"
-a2dissite raspisms.conf
-rm /etc/apache2/sites-available/raspisms.conf
-touch /etc/apache2/sites-available/raspisms.conf
-echo '<Directory "/var/www/html/RaspiSMS/">' >> /etc/apache2/sites-available/raspisms.conf
-echo '    AllowOverride All' >> /etc/apache2/sites-available/raspisms.conf
-echo '</Directory>' >> /etc/apache2/sites-available/raspisms.conf
 
 echo "Activation du fichier de configuration Apache de RaspiSMS"
 a2ensite raspisms.conf
@@ -111,9 +149,12 @@ a2ensite raspisms.conf
 echo "Redémarrage d'Apache"
 service apache2 restart
 
-echo "Redémarrage de Gammu"
-service gammu-smsd stop
-service gammu-smsd start
+if [ "$gammu_detect_check" -eq 0 ]
+then
+    echo "Redémarrage de Gammu"
+    service gammu-smsd stop
+    service gammu-smsd start
+fi
 
 #Ajout des taches CRON
 echo "Ajout des tâches dans la crontab"
