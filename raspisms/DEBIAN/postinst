@@ -86,7 +86,7 @@ random_password=$(date +%s | sha256sum | base64 | head -c 32)
 echo "Création de l'utilisateur MySQL ''raspisms''"
 service mysql stop
 kill `cat /var/run/mysqld/mysqld.pid`
-$(mysqld_safe --skip-grant-tables --skip-networking &> /dev/null &)
+$(/usr/sbin/mysqld --skip-grant-tables --skip-networking &> /dev/null &)
 $(mysql -u root -e "FLUSH PRIVILEGES;CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '$random_password';GRANT ALL PRIVILEGES ON *.* TO USER 'raspisms'@'localhost';")
 echo ""
 
@@ -98,7 +98,7 @@ else
     echo "L'utilisateur MySQL 'raspisms' a bien été créé. Vous pouvez retrouver son mot de passe dans le fichier '/var/www/html/RaspiSMS/mvc/constants.php'."
 fi
 
-$(mysql -u root -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
+$(mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
 
 ret=$?
 if [ "$ret" -ne 0 ]
