@@ -5,9 +5,6 @@
 RED='\033[0;31m'
 NC='\033[0m'
 
-#Install gammu her because install fail and is blocking in depedency
-apt install gammu-smsd -y
-
 while [[ "$autogammu" != "y" && "$autogammu" != "n" ]]
 do
 	echo 'Il est possible de configurer automatiquement gammu. Pour cela, le module GSM gérant la carte SIM doit-être connecté à la Raspberry Pi. Voulez-vous le faire ? [y/n]';
