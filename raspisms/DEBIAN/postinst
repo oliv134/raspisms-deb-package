@@ -80,17 +80,29 @@ fi
 
 #Creation du compte admin
 echo "La base de données de RaspiSMS va être déployée."
-random_password=$(date +%s | sha256sum | base64 | head -c 32)
+#random_password=$(date +%s | sha256sum | base64 | head -c 32)
+random_password='password'
 
 #On kill mysql et on relance en god mode pour créer le user raspisms
 echo "Création de l'utilisateur MySQL ''raspisms''"
-service mysql stop
+echo "raspisms password = $random_password"
 kill `cat /var/run/mysqld/mysqld.pid`
-$(/usr/sbin/mysqld --skip-grant-tables --skip-networking &> /dev/null &)
-$(mysql -u root -e "FLUSH PRIVILEGES;CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '$random_password';GRANT ALL PRIVILEGES ON *.* TO USER 'raspisms'@'localhost';")
-echo ""
 
+/usr/sbin/mysqld --skip-grant-tables --skip-networking &> /dev/null &
+
+sleep 10
+
+mysql -u root -e "FLUSH PRIVILEGES;DROP USER IF EXISTS'raspisms'@'localhost';CREATE USER 'raspisms'@'localhost' IDENTIFIED BY 'password';GRANT ALL PRIVILEGES ON *.* TO 'raspisms'@'localhost';FLUSH PRIVILEGES;"
 ret=$?
+
+kill `cat /var/run/mysqld/mysqld.pid`
+
+sleep 1
+
+/usr/sbin/mysqld &> /dev/null &
+
+sleep 5
+
 if [ "$ret" -ne 0 ]
 then
     echo -e "${RED}Création de l'utilisateur MySQL 'raspisms' impossible. Vous devrez le créer à la main et modifier le fichier '/var/www/html/RaspiSMS/mvc/constants.php' en fonction.${NC}"
@@ -98,7 +110,7 @@ else
     echo "L'utilisateur MySQL 'raspisms' a bien été créé. Vous pouvez retrouver son mot de passe dans le fichier '/var/www/html/RaspiSMS/mvc/constants.php'."
 fi
 
-$(mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql)
+mysql -u raspisms -p$random_password < /var/www/html/RaspiSMS/createDatabase.sql
 
 ret=$?
 if [ "$ret" -ne 0 ]
@@ -109,7 +121,7 @@ else
 fi
 
 echo "La connexion a la base de données pour RaspiSMS va être configurée avec le compte root"
-$(sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$random_password/g" /var/www/html/RaspiSMS/mvc/constants.php)
+sed -i -e "s/DATABASE_PASSWORD_DEFAULT_VALUE/$random_password/g" /var/www/html/RaspiSMS/mvc/constants.php
 
 
 echo "RaspiSMS a été installé avec succès dans le répertoire /var/www/html/RaspiSMS.\n\n";
@@ -140,7 +152,7 @@ echo "Mot de passe : "
 stty -echo
 read password
 stty echo
-$(mysql -u raspisms -p$random_password -e "use raspisms;INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)");
+mysql -u raspisms -p$random_password -e "use raspisms;INSERT INTO users(email, password, admin) VALUES('$email', SHA1('$password'), 1)"
 ret=$?
 
 if [ "$ret" -ne 0 ]
@@ -173,6 +185,7 @@ line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php 
 line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c sendScheduleds"
 (crontab -u root -l; echo "$line" ) | crontab -u root -
 
+#On kill MySQL, et on relance proprement cette fois
 kill `cat /var/run/mysqld/mysqld.pid`
 service mysql start
 

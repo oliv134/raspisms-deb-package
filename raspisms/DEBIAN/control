@@ -3,7 +3,7 @@ Version: 2.0
 Section: base
 Priority: optional
 Architecture: all
-Depends: apache2, php, php-mysql, gammu, mysql-server
+Depends: apache2, php, php-mysql, php-mbstring, gammu, mysql-server
 Maintainer: Raspbian France <raspbianfrance@gmail.com>
 Description: Web application for SMS management, sends, planning, order receipt. And providing API.
 Homepage: http://raspbian-france.fr
