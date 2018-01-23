@@ -1,0 +1,3 @@
+[submodule "raspisms/var/www/html/RaspiSMS"]
+	path = raspisms/var/www/html/RaspiSMS
+	url = https://github.com/RaspbianFrance/RaspiSMS.git
