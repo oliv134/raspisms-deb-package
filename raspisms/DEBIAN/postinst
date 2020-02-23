@@ -80,8 +80,7 @@ fi
 
 #Creation du compte admin
 echo "La base de données de RaspiSMS va être déployée."
-#random_password=$(date +%s | sha256sum | base64 | head -c 32)
-random_password='password'
+random_password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 #On kill mysql et on relance en god mode pour créer le user raspisms
 echo "Création de l'utilisateur MySQL ''raspisms''"
@@ -92,7 +91,7 @@ kill `cat /var/run/mysqld/mysqld.pid`
 
 sleep 10
 
-mysql -u root -e "FLUSH PRIVILEGES;DROP USER IF EXISTS'raspisms'@'localhost';CREATE USER 'raspisms'@'localhost' IDENTIFIED BY 'password';GRANT ALL PRIVILEGES ON *.* TO 'raspisms'@'localhost';FLUSH PRIVILEGES;"
+mysql -u root -e "FLUSH PRIVILEGES;DROP USER IF EXISTS'raspisms'@'localhost';CREATE USER 'raspisms'@'localhost' IDENTIFIED BY '$random_password';GRANT ALL PRIVILEGES ON *.* TO 'raspisms'@'localhost';FLUSH PRIVILEGES;"
 ret=$?
 
 kill `cat /var/run/mysqld/mysqld.pid`
