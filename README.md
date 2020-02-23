@@ -5,20 +5,16 @@ Pour plus d'informations sur ce logiciel, reportez-vous au projet suivant : http
 ## Installation
 Pour installer ce logiciel, rien de plus simple !
 
-Tout d'abord, nous allons le télécharger avec la ligne suivante :
+Tout d'abord, nous allons télécharger le .deb avec la ligne suivante :
 ```bash
-wget https://github.com/RaspbianFrance/raspisms-deb-package/archive/master.zip
+cd /tmp
+wget https://github.com/RaspbianFrance/raspisms-deb-package/raw/master/raspisms.deb -O raspisms.deb
 ```
 
-Une fois ceci fait, nous allons dézipper le fichier à l'aide de la commande suivante :
-```bash
-unzip ./master.zip
-```
-
-Enfin, nous lançons l'installation du logiciel :
+Et nous allons lancer l'installation du logiciel :
 ```bash
 sudo apt-get update
-sudo dpkg -i raspisms-deb-package-master/raspisms.deb
+sudo dpkg -i raspisms.deb
 sudo apt-get -f install
 ```
 
