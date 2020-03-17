@@ -183,6 +183,8 @@ line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php 
 (crontab -u root -l; echo "$line" ) | crontab -u root -
 line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c sendScheduleds"
 (crontab -u root -l; echo "$line" ) | crontab -u root -
+line="* * * * * cd /var/www/html/RaspiSMS && /var/www/html/RaspiSMS/console.php -c sendTransfers"
+(crontab -u root -l; echo "$line" ) | crontab -u root -
 
 #On kill MySQL, et on relance proprement cette fois
 kill `cat /var/run/mysqld/mysqld.pid`
