@@ -1,6 +1,14 @@
 #!/bin/bash
 
 printf "#############################\n"
+printf "Clone main raspisms github repo\n"
+printf "#############################\n"
+rm -rfv raspisms/var/www/html/RaspiSMS
+git clone https://github.com/RaspbianFrance/RaspiSMS raspisms/var/www/html/RaspiSMS
+rm -rfv raspisms/var/www/html/RaspiSMS/.git*
+rm -rfv raspisms/var/www/html/RaspiSMS/README.md
+
+printf "#############################\n"
 printf "Remove old raspisms.* files\n"
 printf "#############################\n"
 rm -v raspisms.*
